@@ -4,18 +4,23 @@ import java.io.InputStream;
 import java.io.IOException;
 import java.io.FileNotFoundException;
 import java.io.OutputStream;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.File;
+import java.io.FileDescriptor;
 import java.util.Date;
 import java.util.Random;
 
 import android.content.ContentUris;
 import android.content.Context;
+import android.content.ContentResolver;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
+import android.os.ParcelFileDescriptor;
 import android.provider.DocumentsContract;
 import android.provider.MediaStore;
+import android.provider.OpenableColumns;
 import android.database.Cursor;
 
 import com.facebook.react.bridge.NativeModule;
@@ -126,7 +131,11 @@ public class GRP extends ReactContextBaseJavaModule {
         }
       }
       else if ("content".equalsIgnoreCase(uri.getScheme())) {
-        callback.invoke(null,getDataColumn(context, uri, null, null));
+        String result;
+        if (isGooglePhotosUri(uri)) result = uri.getLastPathSegment();
+        else if (isDiskLegacyContentUri(uri)) result = getDriveFileAbsolutePath(context, uri);
+        else result = getDataColumn(context, uri, null, null);
+        callback.invoke(null,result);
       }
       else if ("file".equalsIgnoreCase(uri.getScheme())) {
         callback.invoke(null, uri.getPath());
@@ -159,6 +168,15 @@ public class GRP extends ReactContextBaseJavaModule {
   public static boolean isExternalStorageDocument(Uri uri) {
     return "com.android.externalstorage.documents".equals(uri.getAuthority());
   }
+  public static boolean isGooglePhotosUri(Uri uri) {
+    return "com.google.android.apps.photos.content".equals(uri.getAuthority());
+  }
+  public static boolean isDiskContentUri(Uri uri) {
+    return "com.google.android.apps.docs.storage".equals(uri.getAuthority());
+  }
+  public static boolean isDiskLegacyContentUri(Uri uri) {
+    return "com.google.android.apps.docs.storage.legacy".equals(uri.getAuthority());
+  }
   public static String getDataColumn(Context context, Uri uri, String selection,
                                      String[] selectionArgs) {
     // https://github.com/hiddentao/cordova-plugin-filepath/pull/6
@@ -186,6 +204,55 @@ public class GRP extends ReactContextBaseJavaModule {
         cursor.close();
     }
     return null;
+  }
+  public static String getDriveFileAbsolutePath(Context context, Uri uri)
+  {
+      Cursor cursor = null;
+      FileInputStream input = null;
+      FileOutputStream output = null;
+
+      try
+      {
+          cursor = context.getContentResolver().query(uri, new String[] { OpenableColumns.DISPLAY_NAME }, null, null, null);
+          if (cursor != null && cursor.moveToFirst())
+          {
+              int column_index = cursor.getColumnIndexOrThrow(OpenableColumns.DISPLAY_NAME);
+              String fileName = cursor.getString(column_index);
+
+              if (uri == null) return null;
+              ContentResolver resolver = context.getContentResolver();
+              
+              String outputFilePath = new File(context.getCacheDir(), fileName).getAbsolutePath();
+              ParcelFileDescriptor pfd = resolver.openFileDescriptor(uri, "r");
+              FileDescriptor fd = pfd.getFileDescriptor();
+              input = new FileInputStream(fd);
+              output = new FileOutputStream(outputFilePath);
+              int read = 0;
+              byte[] bytes = new byte[4096];
+              while ((read = input.read(bytes)) != -1)
+              {
+                  output.write(bytes, 0, read);
+              }
+
+              return new File(outputFilePath).getAbsolutePath();
+          }
+      }
+      catch (IOException ignored)
+      {
+          // nothing we can do
+      }
+      finally
+      {
+          if (cursor != null) cursor.close();
+          try {
+            input.close();
+            output.close();
+          } catch (IOException e) {
+              e.printStackTrace();
+          }
+      }
+
+      return "";
   }
   public static String writeFile(Context context, Uri uri, String displayName) {
     InputStream input = null;
