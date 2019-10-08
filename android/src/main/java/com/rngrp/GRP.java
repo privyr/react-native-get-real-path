@@ -100,13 +100,27 @@ public class GRP extends ReactContextBaseJavaModule {
             }
 
             if (path == null) {
-              long millis = System.currentTimeMillis();
-              String datetime = new Date().toString();
-              datetime = datetime.replace(" ", "");
-              datetime = datetime.replace(":", "");
-              final String displayName = random() + "_" + datetime + "_" + millis;
+              Cursor cursor = context.getContentResolver().query(uri, null, null, null, null);
+              try
+              {
+                if (cursor != null && cursor.moveToFirst()) {
+                  displayName = cursor.getString(cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME));
+                }
+              }
+              finally
+              {
+                cursor.close();
+              }
+              if (displayName == null) {
+                long millis = System.currentTimeMillis();
+                String datetime = new Date().toString();
+                datetime = datetime.replace(" ", "");
+                datetime = datetime.replace(":", "");
+                displayName = random() + "_" + datetime + "_" + millis;
+                displayName = displayName.replace(".", "");
+              }
 
-              path = writeFile(context, uri, displayName.replace(".", ""));
+              path = writeFile(context, uri, displayName);
             }
 
             callback.invoke(null, path);
