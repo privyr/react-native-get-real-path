@@ -100,6 +100,7 @@ public class GRP extends ReactContextBaseJavaModule {
             }
 
             if (path == null) {
+              String displayName = null;
               Cursor cursor = context.getContentResolver().query(uri, null, null, null, null);
               try
               {
