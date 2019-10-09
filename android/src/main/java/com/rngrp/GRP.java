@@ -150,7 +150,7 @@ public class GRP extends ReactContextBaseJavaModule {
           else result = getDataColumn(context, uri, null, null);
           callback.invoke(null, result);
         } else {
-          callback.invoke(makeErrorPayload(ex));
+          callback.invoke(null, null);
         }
       }
       else if ("content".equalsIgnoreCase(uri.getScheme())) {
