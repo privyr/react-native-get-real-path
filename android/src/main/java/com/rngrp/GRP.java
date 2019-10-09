@@ -143,14 +143,22 @@ public class GRP extends ReactContextBaseJavaModule {
 
             callback.invoke(null, path);
           }
+        } else if ("content".equalsIgnoreCase(uri.getScheme())) {
+          String result;
+          if (isGooglePhotosUri(uri)) result = uri.getLastPathSegment();
+          else if (isGoogleDriveContentUri(uri)) result = getDriveFileAbsolutePath(context, uri);
+          else result = getDataColumn(context, uri, null, null);
+          callback.invoke(null, result);
+        } else {
+          callback.invoke(makeErrorPayload(ex));
         }
       }
       else if ("content".equalsIgnoreCase(uri.getScheme())) {
         String result;
         if (isGooglePhotosUri(uri)) result = uri.getLastPathSegment();
-        else if (isDiskLegacyContentUri(uri)) result = getDriveFileAbsolutePath(context, uri);
+        else if (isGoogleDriveContentUri(uri)) result = getDriveFileAbsolutePath(context, uri);
         else result = getDataColumn(context, uri, null, null);
-        callback.invoke(null,result);
+        callback.invoke(null, result);
       }
       else if ("file".equalsIgnoreCase(uri.getScheme())) {
         callback.invoke(null, uri.getPath());
@@ -189,8 +197,9 @@ public class GRP extends ReactContextBaseJavaModule {
   public static boolean isDiskContentUri(Uri uri) {
     return "com.google.android.apps.docs.storage".equals(uri.getAuthority());
   }
-  public static boolean isDiskLegacyContentUri(Uri uri) {
-    return "com.google.android.apps.docs.storage.legacy".equals(uri.getAuthority());
+  public static boolean isGoogleDriveContentUri(Uri uri) {
+    return "com.google.android.apps.docs.storage.legacy".equals(uri.getAuthority())
+      || "com.google.android.apps.docs.storage".equals(uri.getAuthority());
   }
   public static String getDataColumn(Context context, Uri uri, String selection,
                                      String[] selectionArgs) {
